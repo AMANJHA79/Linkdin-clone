@@ -141,8 +141,24 @@ const logout = async (req, res) => {
   }
 };
 
+const getCurrentUser = async (req, res) => {
+  try{
+    res.json({
+      success: true,
+      message: "User fetched successfully",
+      user: req.user,
+    });
+
+  }
+  catch(error){
+    console.log("Error in getCurrentUser: ", error.message);
+    res.status(500).json({ message: "Internal server error" });
+  }
+}
+
 module.exports = {
   signup,
   login,
   logout,
+  getCurrentUser
 };
