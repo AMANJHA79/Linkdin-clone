@@ -1,6 +1,7 @@
 const Post = require('../models/post-model');
 const Notification = require('../models/Notification-model');
 const cloudinary = require('../config/cloudinary-config');
+const { sendCommentNotificationEmail } = require('../emails/email-handlers');
 
 // Function to get posts from the feed
 const getFeedPosts = async (req, res) => {
@@ -91,4 +92,80 @@ const deletePost = async (req, res) => {
     }
 }
 
-module.exports = { getFeedPosts, createPost, deletePost }; // Export the controller functions
+// Function to get a post by ID
+const getPostById = async (req, res) => {
+    try{
+        const postId = req.params.id;
+        const post = await Post.findById(postId)
+        .populate('author', 'name username profilePicture headline')
+        .populate('comments.user', 'name profilePicture username headline')
+        .sort({createdAt: -1})
+
+        res.status(200).json(post);
+
+    }
+    catch(error){
+        console.error('Error in getPostById controller:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message // Send error message in response
+        });
+    }
+}
+
+// Function to create a comment on a post
+const createComment = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const { content } = req.body;
+
+        // Ensure the post exists before adding a comment
+        const post = await Post.findById(postId);
+        if (!post) {
+            return res.status(404).json({ success: false, message: 'Post not found' }); // Handle post not found
+        }
+
+        // Add the comment to the post
+        post.comments.push({ user: req.user._id, content });
+        await post.save(); // Save the updated post
+
+        // Populate author and comments user details
+        const updatedPost = await Post.findById(postId)
+            .populate('author', 'name username profilePicture headline email')
+            .populate('comments.user', 'name username profilePicture headline email');
+
+
+        // Create a notification for the post author
+        if(post.author.toString() !== req.user._id.toString()){
+            const newNotification = new Notification({
+                recipient: post.author,
+                sender: req.user._id,
+                type: 'comment',
+                relatedPost: req.user._id,
+                relatedComment: postId
+            })
+
+            await newNotification.save();
+            //send email to the post author
+            try {
+                const postUrl = `${process.env.FRONTEND_URL}/post/${postId}`;
+                await sendCommentNotificationEmail(post.author.email, req.author.name, post.user.name, postUrl, content);
+                
+            } catch (error) {
+                console.error('Error in sendEmailToPostAuthor controller:', error);
+                
+            }
+        }
+
+        res.status(200).json({ success: true, message: 'Comment created successfully', post: updatedPost });
+
+    } catch (error) {
+        console.error('Error in createComment controller:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message // Send error message in response
+        });
+    }
+}
+
+module.exports = { getFeedPosts, createPost, deletePost, getPostById, createComment }; // Export the controller functions
