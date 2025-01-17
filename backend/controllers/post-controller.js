@@ -4,7 +4,7 @@ const cloudinary = require('../config/cloudinary-config');
 const { sendCommentNotificationEmail } = require('../emails/email-handlers');
 
 // Function to get posts from the feed
-const getFeedPosts = async (req, res) => {
+const getFeedPosts = async (req, res, next) => {
     try {
         // Fetch posts authored by users in the current user's connections
         const post = await Post.find({ author: { $in: req.user.connections } })
@@ -14,16 +14,12 @@ const getFeedPosts = async (req, res) => {
 
         res.status(200).json(post); // Send the fetched posts as a response
     } catch (error) {
-        console.error('Error fetching getFeedPosts controller:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message // Send error message in response
-        });
+        next(error); // Pass error to the error handler
     }
 }
 
 // Function to create a new post
-const createPost = async (req, res) => {
+const createPost = async (req, res, next) => {
     try {
         const { content, image } = req.body; // Destructure content and image from request body
 
@@ -51,16 +47,12 @@ const createPost = async (req, res) => {
             post: newPost // Send the created post as a response
         });
     } catch (error) {
-        console.error('Error in createPost controller:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message // Send error message in response
-        });
+        next(error); // Pass error to the error handler
     }
 }
 
 // Function to delete a post
-const deletePost = async (req, res) => {
+const deletePost = async (req, res, next) => {
     try {
         const postId = req.params.id; // Get the post ID from request parameters
         const userId = req.user._id; // Get the current user's ID
@@ -84,16 +76,12 @@ const deletePost = async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Post deleted successfully' }); // Send success response
     } catch (error) {
-        console.error('Error in deletePost controller:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message // Send error message in response
-        });
+        next(error); // Pass error to the error handler
     }
 }
 
 // Function to get a post by ID
-const getPostById = async (req, res) => {
+const getPostById = async (req, res, next) => {
     try{
         const postId = req.params.id;
         const post = await Post.findById(postId)
@@ -105,16 +93,12 @@ const getPostById = async (req, res) => {
 
     }
     catch(error){
-        console.error('Error in getPostById controller:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message // Send error message in response
-        });
+        next(error); // Pass error to the error handler
     }
 }
 
 // Function to create a comment on a post
-const createComment = async (req, res) => {
+const createComment = async (req, res, next) => {
     try {
         const postId = req.params.id;
         const { content } = req.body;
@@ -141,7 +125,7 @@ const createComment = async (req, res) => {
                 recipient: post.author,
                 sender: req.user._id,
                 type: 'comment',
-                relatedPost: req.user._id,
+                relatedPost: postId,
                 relatedComment: postId
             })
 
@@ -160,11 +144,7 @@ const createComment = async (req, res) => {
         res.status(200).json({ success: true, message: 'Comment created successfully', post: updatedPost });
 
     } catch (error) {
-        console.error('Error in createComment controller:', error);
-        res.status(500).json({
-            success: false,
-            message: error.message // Send error message in response
-        });
+        next(error); // Pass error to the error handler
     }
 }
 

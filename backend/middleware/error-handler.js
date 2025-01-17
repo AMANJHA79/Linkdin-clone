@@ -6,7 +6,7 @@ const errorHandler = (err, req, res, next) => {
     // Set default status code if not set
     const statusCode = err.statusCode || 500;
   
-    // Respond with the error message
+    // Respond with a consistent error message
     res.status(statusCode).json({
       success: false,
       message: err.message || 'Internal Server Error',

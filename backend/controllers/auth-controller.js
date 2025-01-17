@@ -9,7 +9,7 @@ const {
   sendWelcomeEmail
 } = require("../emails/email-handlers");
 
-const signup = async (req, res) => {
+const signup = async (req, res, next) => {
   try {
     const { name, username, email, password } = req.body;
 
@@ -63,12 +63,11 @@ const signup = async (req, res) => {
       console.error("Error sending welcome Email", emailError);
     }
     } catch (error) {
-      console.log("Error in signup: ", error.message);
-      res.status(500).json({ message: "Internal server error" });
+      next(error);
     }
 };
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try{
     const { username, password } = req.body;
     if(!username || !password){
@@ -112,8 +111,7 @@ const login = async (req, res) => {
 
   }
   catch(error){
-    console.log("Error in login: ", error.message);
-    res.status(500).json({ message: "Internal server error" });
+    next(error);
   }
 
 
@@ -132,16 +130,16 @@ const login = async (req, res) => {
   
 };
 
-const logout = async (req, res) => {
+const logout = async (req, res, next) => {
   try {
     res.clearCookie("jwt-linkdin");
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error logging out" });
+    next(error);
   }
 };
 
-const getCurrentUser = async (req, res) => {
+const getCurrentUser = async (req, res, next) => {
   try{
     res.json({
       success: true,
@@ -151,8 +149,7 @@ const getCurrentUser = async (req, res) => {
 
   }
   catch(error){
-    console.log("Error in getCurrentUser: ", error.message);
-    res.status(500).json({ message: "Internal server error" });
+    next(error);
   }
 }
 

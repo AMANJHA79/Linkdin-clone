@@ -1,7 +1,8 @@
+const client = require('../config/redisClient'); // Import the Redis client
 const User = require('../models/user-model');
 const cloudinary = require('../config/cloudinary-config');
 
-const getSuggestionsConnections = async (req, res) => {
+const getSuggestionsConnections = async (req, res, next) => {
     try{
 
         const currentUser = await User.findById(req.user._id).select('connections');
@@ -28,14 +29,11 @@ const getSuggestionsConnections = async (req, res) => {
 
     }
     catch(error){
-        res.status(500).json({
-            success: false,
-            message: error.message
-        })
+        next(error);
     }
 }
 
-const getPublicProfile = async (req, res) => {
+const getPublicProfile = async (req, res, next) => {
     try{
         const user = await User.findOne({
             username: req.params.username
@@ -55,65 +53,55 @@ const getPublicProfile = async (req, res) => {
 
     }
     catch(error){
-        res.status(500).json({
-            success: false,
-            message: error.message
-        })
+        next(error);
     }
 }
 
-const updateProfile = async (req, res) => {
-    try{
-        const allowedFields = [
-            "name",
-            "headline",
-            "about",
-            "location",
-            "profilePicture",
-            "bannerImg",
-            "skills",
-            "experience"
-        ];
+const updateProfile = async (req, res, next) => {
+    const userId = req.user._id;
 
-        const updateddata = {};
+    try {
+        // Assume you have logic to update the user profile here...
+        const updatedData = req.body; // Get updated data from request
+        const user = await User.findByIdAndUpdate(userId, updatedData, { new: true });
 
-        for(const field of allowedFields){
-            if(req.body[field]){
-                updateddata[field] = req.body[field];
-            }
-        }
-
-
-
-        //todo check foe the profile picture and banner img
-
-        if(req.body.profilePicture){
-            const result= await cloudinary.uploader.upload(req.body.profilePicture);
-            updateddata.profilePicture = result.secure_url;
-        }
-
-        if(req.body.bannerImg){
-            const result= await cloudinary.uploader.upload(req.body.bannerImg);
-            updateddata.bannerImg = result.secure_url;
-        }
-
-        const user = await User.findByIdAndUpdate(req.user._id,updateddata,{new:true}).select('-password');
+        // Invalidate the cache for user connections
+        client.del(`user_connections:${userId}`);
 
         res.status(200).json({
             success: true,
-            data: user
-        })
-
-
+            data: user // Return the updated user object
+        });
+    } catch (error) {
+        next(error); // Handle error
     }
-    catch(error){
-        res.status(500).json({
-            success: false,
-            message: error.message
+};
 
-        })
-    }
+// Get user connections with caching
+const getUserConnections = async (req, res, next) => {
+    const userId = req.user._id;
 
-}
+    // Check if the data is in the cache
+    client.get(`user_connections:${userId}`, async (err, cachedConnections) => {
+        if (err) {
+            return next(err); // Handle Redis error
+        }
 
-module.exports = {getSuggestionsConnections,getPublicProfile,updateProfile}
+        if (cachedConnections) {
+            // If cached data exists, return it
+            return res.json(JSON.parse(cachedConnections)); // Parse the cached JSON string
+        }
+
+        try {
+            // Fetch from the database if not cached
+            const user = await User.findById(userId).populate('connections', 'name username profilePicture headline connections');
+            // Cache the connections with an expiration time (e.g., 10 minutes)
+            client.setex(`user_connections:${userId}`, 600, JSON.stringify(user.connections));
+            res.json(user.connections);
+        } catch (error) {
+            next(error); // Handle database error
+        }
+    });
+};
+
+module.exports = {getSuggestionsConnections,getPublicProfile,updateProfile,getUserConnections}
