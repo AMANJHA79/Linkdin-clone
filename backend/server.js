@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth-route');
 const userRoutes = require('./routes/user-route');
 const postRoutes = require('./routes/post-routes');
 const notificationRoutes = require('./routes/notification-routes');
+const connectionRoutes = require('./routes/connection-routes');
 
 
 
@@ -22,6 +23,8 @@ app.use('/api/v1/auth',authRoutes)
 app.use('/api/v1/users',userRoutes)
 app.use('/api/v1/posts', postRoutes)
 app.use('/api/v1/notifications', notificationRoutes)
+app.use('/api/v1/connections', connectionRoutes)
+
 
 
 
